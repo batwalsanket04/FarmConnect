@@ -2,8 +2,8 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 from django.contrib.auth.hashers import make_password
-from .models import Farmer
-from .serializer import FarmerSerializer
+from .models import Farmer,Buyer
+from .serializer import FarmerSerializer,BuyerSerializer
 from django.contrib.auth.hashers import check_password
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.views.decorators.csrf import csrf_exempt
@@ -50,3 +50,54 @@ def farmer_login(request):
         "access":str(refresh.access_token),
         "refresh":str(refresh)
     })
+
+# BUYUR
+@api_view(['POST'])
+@csrf_exempt
+def buyer_registration(request):
+    data=request.data
+    print(request.data)
+
+
+    if Buyer.objects.filter(b_email=data.get('b_email')).exists():
+        return Response({"message":"User already Exist"},status=400)
+    
+    if not data.get('b_password'):
+        return Response({"message":"Password required"},status=400)
+    
+    data['b_password']=make_password(data.get('b_password'))
+
+    serializer=BuyerSerializer(data=data)
+
+    if serializer.is_valid():
+        serializer.save()
+        return Response({"message":"Registration Successfully.."},status=201)
+    return Response(serializer.errors,status=400)
+    
+
+
+@api_view(['POST'])
+@csrf_exempt
+def buyer_login(request):
+    email=request.data.get('b_email')
+    password=request.data.get('b_password')
+
+    try:
+        user=Buyer.objects.get(b_email=email)
+
+    except Buyer.DoesNotExist:
+        return Response({"message":"User not found"},status=404)
+    
+    if not check_password(password,user.b_password):
+        return Response({"message":"Invalid password"},status=400)\
+    
+    refresh=RefreshToken.for_user(user)
+
+    return Response({
+        "message":"Login Successfully...",
+        "access":str(refresh.access_token),
+        "refresh":str(refresh)
+    })
+
+
+
